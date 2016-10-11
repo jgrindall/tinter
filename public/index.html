@@ -10,16 +10,26 @@
 		
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 		
+		<style>
+			*{
+				font-family:Helvetica, Verdana,Arial,sans-serif;
+				font-size:16px;
+				color:#222;
+			}
+		</style>
 		
 	</head>
 	
 	<body>
+	
+	<img src="logo.png" height="100"/>
 	
 		<img id='new'></img>
 		<a id='download' href=''>Download</a>
 
 		<form id="form">
 			<input type="file" name="uploads[]" multiple="multiple"></input>
+			<input type="text"></input>
 			<button>Submit</button>
 		</form>
 		
@@ -34,10 +44,8 @@
 					var files = $("#form input[type=file]").get(0).files;
 					if (files.length > 0){
 						var formData = new FormData();
-						for (var i = 0; i < files.length; i++) {
-							var file = files[i];
-							formData.append('uploads[]', file, file.name);
-						}
+						formData.append('uploads[]', files[0], files[0].name);
+						formData.append("abc", "pqrs");
 						$.ajax({
 							url: "/upload",
 							type: 'post',
