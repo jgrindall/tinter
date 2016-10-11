@@ -9,12 +9,23 @@
 		<meta name="viewport" content = "width = device-width, initial-scale = 1.0, user-scalable = no, minimum-scale = 1, maximum-scale = 1" />
 		
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 		
 		<style>
 			*{
 				font-family:Helvetica, Verdana,Arial,sans-serif;
-				font-size:16px;
+				font-size:17px;
 				color:#222;
+			}
+			label, input, button, p, span, img, textarea{
+				margin:20px;
+			}
+			label{
+				font-weight:bold;
+			}
+			ul img{
+				width:500px;
+				display:block;
 			}
 		</style>
 		
@@ -22,40 +33,72 @@
 	
 	<body>
 	
-	<img src="logo.png" height="100"/>
-	
-		<img id='new'></img>
-		<a id='download' href=''>Download</a>
+		<img src="logo.png" height="100"/>
 
 		<form id="form">
+			<label>1. Upload your image.</label>
+			<br/>
 			<input type="file" name="uploads[]" multiple="multiple"></input>
-			<input type="text"></input>
+			<br/>
+			<br/>
+			<label>2. Enter your hex colors to tint with (one on each line, with #)</label>
+			<br/>
+			<textarea id="hex" rows="10" cols="20" wrap="soft"></textarea>
+			<br/>
+			<br/>
 			<button>Submit</button>
 		</form>
 		
-		<script>
+		<br/>
+		<hr/>
+		<br/>
+		<label>3. Check and <a id='download' style='color:blue;' href='/download'>download</a> your images.</label>
+		<br/>
+		<br/>
 		
+		<ul id="images"></ul>
+		
+		<script>
+			
+			var getFormData = function(){
+				var formData, hex, files;
+				formData = new FormData();
+				hex = $("#hex").val().toLowerCase().replace(/[^01234567889abcdef#\n]/gi, '').split("\n");
+				hex = _.compact(hex);
+				files = $("#form input[type=file]").get(0).files;
+				if (files.length > 0){
+					formData = new FormData();
+					formData.append('uploads[]', files[0], files[0].name);
+					formData.append("colors", hex.join(","));
+				}
+				//TODO - verify
+				return formData;
+			};
+			
 			$(document).ready(function(){
 				var input = $("input[type=file]");
-				$("a#download").hide();
 				$("button").on("click", function(e){
+					var hex, formData, files;
 					e.stopPropagation();
 					e.preventDefault();
-					var files = $("#form input[type=file]").get(0).files;
+					hex = $("#hex").val().toLowerCase().replace(/[^01234567889abcdef#\n]/gi, '').split("\n");
+					hex = _.compact(hex);
+					files = $("#form input[type=file]").get(0).files;
 					if (files.length > 0){
-						var formData = new FormData();
+						formData = new FormData();
 						formData.append('uploads[]', files[0], files[0].name);
-						formData.append("abc", "pqrs");
+						formData.append("colors", hex.join(","));
 						$.ajax({
 							url: "/upload",
 							type: 'post',
 							data: formData,
 							processData: false,
 							contentType: false,
-							success: function (src) {
+							success: function (response) {
+								var img = $("<img/>");
+								$("#images").append(img);
 								setTimeout(function(){
-									$("img#new").attr("src", "/uploads/" + src);
-									//$("a#download").show();
+									img.attr("src", "/uploads/upload_" + response.token + "/new_0.png");
 								}, 1000);
 							}
 						});

@@ -15,7 +15,9 @@
     	"express": "~3.5.1",
 		"jimp":"latest",
 		"formidable":"latest",
-		"tinycolor2":"latest"
+		"tinycolor2":"latest",
+		"zip-folder":"latest",
+		"mkdirp":"latest"
   	}
 }
 

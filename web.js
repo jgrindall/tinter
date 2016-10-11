@@ -1,73 +1,117 @@
-var express = require("express");
+var express = 			require("express");
+var formidable =	 	require("formidable");
+var path = 				require('path');
+var jimp = 				require('jimp');
+var tinycolor2 = 		require("tinycolor2");
+var fs = 				require("fs");
+var zipFolder = 		require("zip-folder");
+var mkdirp = 			require("mkdirp");
+
 var app = express();
-var fs = require("fs");
 var port = Number(process.env.PORT || 5000);
-var formidable = require("formidable");
-var path = require('path');
-var jimp = require('jimp');
 var UPLOAD_DIR = path.join(__dirname, '/public/uploads');
-var tinycolor2 = require("tinycolor2");
 
 app.configure(function(){
-	app.use(express.static(__dirname+"/public"));
+	app.use(express.static(__dirname + "/public"));
+});
+
+var MAX_OFFSET = 20;
+
+var zipImages = function(colorList, token, fn){
+	var tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
+	var zipDirectory = path.join(UPLOAD_DIR, "/upload_" + token + ".zip");
+	zipFolder(tokenDirectory, zipDirectory, function(err) {
+		fn();
+	});
+};
+
+var processImg = function(img, colorList, token){
+	console.log("p1");
+	var data, i, color0, clonedImg;
+	var tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
+	for(i = 0; i < colorList.length; i++){
+		color0 = tinycolor2(colorList[i]);
+		console.log("clr", colorList[i]);
+		clonedImg = img.clone();
+		data = clonedImg.bitmap.data;
+		clonedImg.scan(0, 0, clonedImg.bitmap.width, clonedImg.bitmap.height, function (x, y, idx) {
+			var newColor;
+			var red   = 		data[ idx + 0 ];
+			var green = 		data[ idx + 1 ];
+			var blue  = 		data[ idx + 2 ];
+			var alpha = 		data[ idx + 3 ];
+			var amount = 		red - 127;
+			if(amount >= 0){
+				newColor = 		color0.clone().lighten(Math.round(MAX_OFFSET * amount/127));
+			}
+			else{
+				newColor = 		color0.clone().darken(Math.round(-MAX_OFFSET * amount/127));
+			}
+			var newRGB = newColor.toRgb();
+			data[idx + 0] = 	newRGB.r;
+			data[idx + 1] = 	newRGB.g;
+			data[idx + 2] = 	newRGB.b;
+		});
+		clonedImg.write(path.join(tokenDirectory, "new_" + i + ".png"));
+	}
+	console.log("p4");
+};
+
+app.get('/download', function(req, res) {
+	var file = path.join(UPLOAD_DIR, "file.txt");
+    res.download(file, 'file.txt', function(err){
+	 	if (err) {
+			console.log(err);
+	 	}
+	 	else {
+			console.log('done');
+	 	}
+	});
 });
 
 app.post('/upload', function(req, res) {
     var form = new formidable.IncomingForm();
-	var filename = "upload" + Math.floor(Math.random()*100000000000) + ".png";
-	var editedFilename = "_" + filename;
-	var color0;
-	var fullFilename = path.join(UPLOAD_DIR, filename);
-	var fullEditedFilename = path.join(UPLOAD_DIR, editedFilename);
 	form.multiples = true;
+	var token = Math.floor(Math.random() * 100000000000);
+	var tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
+	var filename = "orig.png";
+	var fullFilename = path.join(tokenDirectory, filename);
+	var colorList = [];
 	form.on('file', function(field, file) {
-		fs.rename(file.path, fullFilename);
+		fs.renameSync(file.path, fullFilename);
 	});
-	form.on('field', function(){
-		console.log("FIELD??", arguments);
+	form.on('field', function(name, val){
+		if(name === "colors"){
+			colorList = val.split(",");
+		}
 	});
 	form.on('error', function(err) {
-		console.log("error");
 		console.log('An error has occured: \n' + err);
 	});
 	form.on('end', function() {
-		setTimeout(function(){
-			console.log("END");
-			jimp.read(fullFilename)
-			.then(function (img) {
-				console.log("process", img.bitmap.width, img.bitmap.height);
-				var data = img.bitmap.data;
-				var MAX_OFFSET = 30;
-				var color0 = { r: 216, g: 118, b: 22 };
-				img.scan(0, 0, img.bitmap.width, img.bitmap.height, function (x, y, idx) {
-					var newColor;
-					var red   = 		data[ idx + 0 ];
-					var green = 		data[ idx + 1 ];
-					var blue  = 		data[ idx + 2 ];
-					var alpha = 		data[ idx + 3 ];
-					var amount = 		red - 127;
-					if(amount >= 0){
-						newColor = 		tinycolor2(color0).lighten(Math.round(MAX_OFFSET * amount/127));
-					}
-					else{
-						newColor = 		tinycolor2(color0).darken(Math.round(-MAX_OFFSET * amount/127));
-					}
-					var newRGB = newColor.toRgb();
-					data[idx + 0] = 	newRGB.r;
-					data[idx + 1] = 	newRGB.g;
-					data[idx + 2] = 	newRGB.b;
+		jimp.read(fullFilename)
+		.then(function (img) {
+			processImg(img, colorList, token);
+			console.log("p done");
+			zipImages(colorList, token, function(){
+				console.log("z done");
+				setTimeout(function(){
+					res.writeHead(200, { 'Content-Type': 'application/json' });
+					res.write(JSON.stringify({ "token": token, "num":colorList.length}));
+					res.end();
 				});
-				img.write(fullEditedFilename);
-				res.end(editedFilename);
-			})
-			.catch(function(e){
-				console.err(e);
-				throw e;
 			});
-		}, 1000);
+		})
+		.catch(function(e){
+			console.err(e);
+			throw e;
+		});
+	});
+	mkdirp(tokenDirectory, function(err) {
+		form.parse(req);
 	});
 	console.log("parse!");
-	form.parse(req);
+	
 });
 
 app.get('/', function(req, res) {
