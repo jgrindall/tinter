@@ -58,8 +58,9 @@ var processImg = function(img, colorList, token){
 };
 
 app.get('/download', function(req, res) {
-	var file = path.join(UPLOAD_DIR, "file.txt");
-    res.download(file, 'file.txt', function(err){
+	var token = req.query.token;
+	var zipDirectory = path.join(UPLOAD_DIR, "/upload_" + token + ".zip");
+    res.download(zipDirectory, token + '.zip', function(err){
 	 	if (err) {
 			console.log(err);
 	 	}
@@ -92,15 +93,17 @@ app.post('/upload', function(req, res) {
 		jimp.read(fullFilename)
 		.then(function (img) {
 			processImg(img, colorList, token);
-			console.log("p done");
-			zipImages(colorList, token, function(){
-				console.log("z done");
-				setTimeout(function(){
-					res.writeHead(200, { 'Content-Type': 'application/json' });
-					res.write(JSON.stringify({ "token": token, "num":colorList.length}));
-					res.end();
+			setTimeout(function(){
+				console.log("p done");
+				zipImages(colorList, token, function(){
+					console.log("z done");
+					setTimeout(function(){
+						res.writeHead(200, { 'Content-Type': 'application/json' });
+						res.write(JSON.stringify({ "token": token, "num":colorList.length}));
+						res.end();
+					});
 				});
-			});
+			}, 1000);
 		})
 		.catch(function(e){
 			console.err(e);
@@ -121,42 +124,3 @@ app.get('/', function(req, res) {
 app.listen(port, function() {
   console.log("Listening on " + port);
 });
-
-/*
-jimp.read(fullFilename)
-		.then(function (img) {
-			console.log("PROCESS", fullFilename, "->", fullEditedFilename);
-			img
-			.resize(256, 256)
-			.quality(60)
-			.greyscale()
-			.write(fullEditedFilename);
-			console.log("PROCESSED ", fullEditedFilename);
-			res.end(fullEditedFilename);
-		})
-		.catch(function (err) {
-			console.error(err);
-			
-			
-			
-			
-			app.get('/upload', function(req, res) {
-	var file = __dirname + '/upload/upload.txt';
-    res.download(file, 'upload.txt', function(err){
-	 	if (err) {
-	   	console.log(err);
-	 	}
-	 	else {
-	   	console.log('done');
-	 	}
-	});
-});
-
-
-<a href='/upload'>Download</a>
-
-
-
-
-
-		});*/
