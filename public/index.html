@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+	
+	<head>
+
+		<meta charset="utf-8">
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+		<meta name="viewport" content = "width = device-width, initial-scale = 1.0, user-scalable = no, minimum-scale = 1, maximum-scale = 1" />
+		
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+		
+		
+	</head>
+	
+	<body>
+	
+		<img id='new'></img>
+		<a id='download' href=''>Download</a>
+
+		<form id="form">
+			<input type="file" name="uploads[]" multiple="multiple"></input>
+			<button>Submit</button>
+		</form>
+		
+		<script>
+		
+			$(document).ready(function(){
+				var input = $("input[type=file]");
+				$("a#download").hide();
+				$("button").on("click", function(e){
+					e.stopPropagation();
+					e.preventDefault();
+					var files = $("#form input[type=file]").get(0).files;
+					if (files.length > 0){
+						var formData = new FormData();
+						for (var i = 0; i < files.length; i++) {
+							var file = files[i];
+							formData.append('uploads[]', file, file.name);
+						}
+						$.ajax({
+							url: "/upload",
+							type: 'post',
+							data: formData,
+							processData: false,
+							contentType: false,
+							success: function (src) {
+								setTimeout(function(){
+									$("img#new").attr("src", "/uploads/" + src);
+									//$("a#download").show();
+								}, 1000);
+							}
+						});
+					}
+					return false;
+				});
+			});
+		
+		</script>
+		
+	</body>
+	
+</html>
