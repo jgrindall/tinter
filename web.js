@@ -6,28 +6,27 @@ var tinycolor2 = 		require("tinycolor2");
 var fs = 				require("fs");
 var zipFolder = 		require("zip-folder");
 var mkdirp = 			require("mkdirp");
+var Promise = 			require("bluebird");
 
-var app = express();
-var port = Number(process.env.PORT || 5000);
-var UPLOAD_DIR;
-
-if(process.env.PORT){
-	UPLOAD_DIR = path.join('/tmp/uploads');
-}
-else{
-	UPLOAD_DIR = path.join(__dirname, '/public/uploads');
-}
-
-
-
+var app = 				express();
+var port = 				Number(process.env.PORT || 5000);
+var UPLOAD_DIR = 		path.join(__dirname, '/public/uploads');
 
 app.configure(function(){
 	app.use(express.static(__dirname + "/public"));
 });
 
+var Deferred = function(){
+    var _this = this;
+    this.promise = new Promise(function resolver(resolve, reject) {
+        _this.resolve = resolve;
+        _this.reject = reject;
+    });
+};
+
 var MAX_OFFSET = 20;
 
-var zipImages = function(colorList, token, fn){
+var zipImages = function(token, fn){
 	var tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
 	var zipDirectory = path.join(UPLOAD_DIR, "/upload_" + token + ".zip");
 	zipFolder(tokenDirectory, zipDirectory, function(err) {
@@ -35,7 +34,26 @@ var zipImages = function(colorList, token, fn){
 	});
 };
 
-var processImg = function(img, colorList, token){
+var processAll = function(files, colorList, token){
+	var def = new Deferred();
+	var promises = files.map(function(file){
+		return jimp.read(file);
+	});
+	Promise.all(promises)
+	.then(function(imgs){
+		for(var index = 0; index < imgs.length; index++){
+			processImg(imgs[index], index, colorList, token);
+		}
+	});
+	setTimeout(function(){
+		zipImages(token, function(){
+			def.resolve();
+		});
+	}, 1000);
+	return def.promise;
+};
+
+var processImg = function(img, index, colorList, token){
 	console.log("p1");
 	var data, i, color0, clonedImg;
 	var tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
@@ -62,9 +80,8 @@ var processImg = function(img, colorList, token){
 			data[idx + 1] = 	newRGB.g;
 			data[idx + 2] = 	newRGB.b;
 		});
-		clonedImg.write(path.join(tokenDirectory, "new_" + i + ".png"));
+		clonedImg.write(path.join(tokenDirectory, "new_" + index + "_" + i + ".png"));
 	}
-	console.log("p4");
 };
 
 app.get('/download', function(req, res) {
@@ -85,10 +102,12 @@ app.post('/upload', function(req, res) {
 	form.multiples = true;
 	var token = Math.floor(Math.random() * 100000000000);
 	var tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
-	var filename = "orig.png";
-	var fullFilename = path.join(tokenDirectory, filename);
 	var colorList = [];
+	var files = [];
 	form.on('file', function(field, file) {
+		var fullFilename = path.join(tokenDirectory, "orig_" + files.length + ".png");
+		console.log("file", file, fullFilename);
+		files.push(fullFilename);
 		fs.renameSync(file.path, fullFilename);
 	});
 	form.on('field', function(name, val){
@@ -100,31 +119,20 @@ app.post('/upload', function(req, res) {
 		console.log('An error has occured: \n' + err);
 	});
 	form.on('end', function() {
-		jimp.read(fullFilename)
-		.then(function (img) {
-			processImg(img, colorList, token);
-			setTimeout(function(){
-				console.log("p done");
-				zipImages(colorList, token, function(){
-					console.log("z done");
-					res.writeHead(200, { 'Content-Type': 'application/json' });
-					res.write(JSON.stringify({ "token": token, "num":colorList.length}));
-					res.end();
-				});
-			}, 1000);
-		})
-		.catch(function(e){
-			console.err(e);
-			throw e;
+		console.log("end!");
+		processAll(files, colorList, token)
+		.then(function(){
+			res.writeHead(200, { 'Content-Type': 'application/json' });
+			res.write(JSON.stringify({"token": token, "numFiles":files.length, "numColors":colorList.length}));
+			res.end();
 		});
 	});
 	mkdirp(UPLOAD_DIR, function(err) {
 		mkdirp(tokenDirectory, function(err) {
+			console.log("parse!");
 			form.parse(req);
 		});
 	});
-	console.log("parse!");
-	
 });
 
 app.get('/', function(req, res) {

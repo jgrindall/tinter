@@ -17,7 +17,8 @@
 		"formidable":"latest",
 		"tinycolor2":"latest",
 		"zip-folder":"latest",
-		"mkdirp":"latest"
+		"mkdirp":"latest",
+    "bluebird":"latest"
   	}
 }
 

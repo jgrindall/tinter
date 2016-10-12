@@ -53,11 +53,8 @@
 				background-position:center center;
 			}
 		</style>
-		
 	</head>
-	
 	<body>
-	
 		<img style='margin:0 !important;' src="logo.png" height="80"/>
 
 		<form id="form">
@@ -75,7 +72,6 @@
 			<button id="submit">Submit</button>
 			<button id="clear" >Clear</button>
 		</form>
-		
 		<br/>
 		<hr/>
 		<br/>
@@ -107,7 +103,9 @@
 				hex = getHexArray();
 				if(hex && files.length > 0){
 					formData = new FormData();
-					formData.append('uploads[]', files[0], files[0].name);
+					for(var i = 0; i < files.length; i++){
+						formData.append('uploads[]', files[i], files[i].name);
+					}
 					formData.append("colors", hex.join(","));
 					return formData;
 				}
@@ -139,28 +137,30 @@
 			var showSpinner = function(){
 				$("body").append("<div class='spinner'></div>");
 			};
-			
 			var hideSpinner = function(){
 				$(".spinner").remove();;
 			};
-			
 			var loadImages = function(response){
 				// original
 				token = response.token;
+				console.log(response);
 				var hex = getHexArray();
 				setTimeout(function(){
+					var i, j, img
 					$("#download").attr("href", "/download?token=" + token);
-					var i, img = $("<img/>");
-					$("#images").append(img);
-					img.attr("src", "/uploads/upload_" + token + "/orig.png").attr("data-name", "orig").addClass("orig");
-					for(i = 0; i < response.num; i++){
-						img = $("<img/>").attr("src", "/uploads/upload_" + token + "/new_" + i + ".png").attr("data-name", "new_" + i).addClass("new").addClass("new_" + i).attr("data-tint", hex[i]);
+					for(j = 0; j < response.numFiles; j++){
+						img = $("<img/>").attr("src", "/uploads/upload_" + token + "/orig_" + j + ".png").addClass("orig");
 						$("#images").append(img);
+						console.log("loop", response.numColors);
+						for(i = 0; i < response.numColors; i++){
+							console.log(i, j);
+							img = $("<img/>").attr("src", "/uploads/upload_" + token + "/new_" + j + "_" + i + ".png").addClass("new");
+							$("#images").append(img);
+						}
 					}
 				}, 100);
 				setTimeout(hideSpinner, 200);
 			};
-			
 			var sendForm = function(formData){
 				return $.ajax({
 					url: "/upload",
