@@ -10,6 +10,8 @@
 		
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+		<script src="https://cdn.rawgit.com/oliver-moran/jimp/v0.2.27/browser/lib/jimp.min.js"></script>
+		<script src="tinycolor.js"></script>
 		
 		<style>
 			*{
@@ -24,11 +26,31 @@
 				font-weight:bold;
 			}
 			ul img{
-				width:500px;
-				display:block;
+				max-width:200px;
 			}
 			textarea{
 				font-family:monospace;
+			}
+			button:not(:disabled){
+				cursor:pointer;
+			}
+			button:disabled{
+				opacity:0.3;
+			}
+			a.preset{
+				margin:10px;
+				color:blue;
+			}
+			.spinner{
+				position:absolute;
+				top:0;
+				bottom:0;
+				left:0;
+				right:0;
+				background-color:rgba(200,200,200,0.5);
+				background-image:url("spinner_192.gif");
+				background-repeat:no-repeat;
+				background-position:center center;
 			}
 		</style>
 		
@@ -45,6 +67,7 @@
 			<br/>
 			<br/>
 			<label>2. Enter your hex colors to tint with (one on each line, with #)</label>
+			<p><a id="preset0" class='preset'>preset0</a><a id="preset1" class='preset preset0'>preset1</a></p>
 			<br/>
 			<textarea id="hex" rows="10" cols="20" wrap="soft"></textarea>
 			<br/>
@@ -56,7 +79,7 @@
 		<br/>
 		<hr/>
 		<br/>
-		<label>3. Check and <a id='download' style='color:blue;' href='/download'>download</a> your images.</label>
+		<label>3. Check and <a id='download' style='color:blue;' href='/download'>download</a> your images. Tweak your colours and resubmit if you need to.</label>
 		<br/>
 		<br/>
 		
@@ -64,58 +87,126 @@
 		
 		<script>
 			
+			var token;
+			
+			var MAX_OFFSET = 20;
+			
+			var presets = {
+				"preset0":"#ff0000\n#00ff00",
+				"preset1":"#ff0000\n#000066\n#444666"
+			};
+			
+			var someImages = function(){
+				return ($("ul#images li").length >= 1);
+			};
+			
 			var getFormData = function(){
 				var formData, hex, files;
 				formData = new FormData();
-				hex = $("#hex").val().toLowerCase().replace(/[^01234567889abcdef#\n]/gi, '').split("\n");
-				hex = _.compact(hex);
 				files = $("#form input[type=file]").get(0).files;
-				if (files.length > 0){
+				hex = getHexArray();
+				if(hex && files.length > 0){
 					formData = new FormData();
 					formData.append('uploads[]', files[0], files[0].name);
 					formData.append("colors", hex.join(","));
+					return formData;
 				}
-				//TODO - verify
-				return formData;
+				else{
+					console.log(hex, files.length);
+					alert("There is a problem with your input. One file and at least one hex string please");
+					return null;
+				}
+			};
+			
+			var getHexArray = function(){
+				var hex = $("#hex").val().toLowerCase().replace(/[^01234567889abcdef#\n]/gi, '').split("\n");
+				var arr = _.compact(hex);
+				if(arr.length === 0){
+					return null;
+				}
+				var re = new RegExp("^#[0-9a-fA-F]{6}$");
+				for(var i = 0; i < arr.length; i++){
+					console.log(arr[i], re.test(arr[i]));
+					if(!re.test(arr[i])){
+						console.log(arr[i], "fails");
+						alert("# followed by 6 characters please");
+						return null;
+					}
+				}
+				return arr;
+			};
+			
+			var showSpinner = function(){
+				$("body").append("<div class='spinner'></div>");
+			};
+			
+			var hideSpinner = function(){
+				$(".spinner").remove();;
+			};
+			
+			var loadImages = function(response){
+				// original
+				token = response.token;
+				var hex = getHexArray();
+				setTimeout(function(){
+					$("#download").attr("href", "/download?token=" + token);
+					var i, img = $("<img/>");
+					$("#images").append(img);
+					img.attr("src", "/uploads/upload_" + token + "/orig.png").attr("data-name", "orig").addClass("orig");
+					for(i = 0; i < response.num; i++){
+						img = $("<img/>").attr("src", "/uploads/upload_" + token + "/new_" + i + ".png").attr("data-name", "new_" + i).addClass("new").addClass("new_" + i).attr("data-tint", hex[i]);
+						$("#images").append(img);
+					}
+				}, 100);
+				setTimeout(hideSpinner, 200);
+			};
+			
+			var sendForm = function(formData){
+				return $.ajax({
+					url: "/upload",
+					type: 'post',
+					data: formData,
+					processData: false,
+					contentType: false
+				});
+			};
+			
+			var empty = function(){
+				$("ul#images").empty();
+			};
+			
+			var submitToServer = function(){
+				var formData = getFormData();
+				showSpinner();
+				if (formData){
+					sendForm(formData)
+					.then(loadImages);
+				}
+			};
+			
+			var loadPreset = function(id){
+				$("#hex").val(presets[id]);
 			};
 			
 			$(document).ready(function(){
 				var input = $("input[type=file]");
+				$("a.preset").click(function(e){
+					e.stopPropagation();
+					e.preventDefault();
+					loadPreset($(e.target).attr("id"));
+					return false;
+				});
 				$("button#clear").on("click", function(e){
 					e.stopPropagation();
 					e.preventDefault();
-					$("ul#images").empty();
+					empty();
 					return false;
 				});
 				$("button#submit").on("click", function(e){
-					var hex, formData, files;
 					e.stopPropagation();
 					e.preventDefault();
-					hex = $("#hex").val().toLowerCase().replace(/[^01234567889abcdef#\n]/gi, '').split("\n");
-					hex = _.compact(hex);
-					files = $("#form input[type=file]").get(0).files;
-					if (files.length > 0){
-						formData = new FormData();
-						formData.append('uploads[]', files[0], files[0].name);
-						formData.append("colors", hex.join(","));
-						$.ajax({
-							url: "/upload",
-							type: 'post',
-							data: formData,
-							processData: false,
-							contentType: false,
-							success: function (response) {
-								setTimeout(function(){
-									$("#download").attr("href", "/download?token=" + response.token);
-									for(var i = 0; i < response.num; i++){
-										var img = $("<img/>");
-										$("#images").append(img);
-										img.attr("src", "/uploads/upload_" + response.token + "/new_" + i + ".png");
-									}
-								}, 1000);
-							}
-						});
-					}
+					empty();
+					submitToServer();
 					return false;
 				});
 			});
@@ -125,3 +216,4 @@
 	</body>
 	
 </html>
+

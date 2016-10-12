@@ -97,11 +97,9 @@ app.post('/upload', function(req, res) {
 				console.log("p done");
 				zipImages(colorList, token, function(){
 					console.log("z done");
-					setTimeout(function(){
-						res.writeHead(200, { 'Content-Type': 'application/json' });
-						res.write(JSON.stringify({ "token": token, "num":colorList.length}));
-						res.end();
-					});
+					res.writeHead(200, { 'Content-Type': 'application/json' });
+					res.write(JSON.stringify({ "token": token, "num":colorList.length}));
+					res.end();
 				});
 			}, 1000);
 		})
