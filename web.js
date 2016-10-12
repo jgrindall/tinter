@@ -127,8 +127,10 @@ app.post('/upload', function(req, res) {
 	form.on('end', function() {
 		processAll(files, colorList, token)
 		.then(function(){
+			var output = JSON.stringify({"token": token, "numFiles":files.length, "numColors":colorList.length});
+			console.log("processed", output);
 			res.writeHead(200, { 'Content-Type': 'application/json' });
-			res.write(JSON.stringify({"token": token, "numFiles":files.length, "numColors":colorList.length}));
+			res.write(output);
 			res.end();
 		});
 	});
