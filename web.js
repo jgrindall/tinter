@@ -108,8 +108,10 @@ app.post('/upload', function(req, res) {
 			throw e;
 		});
 	});
-	mkdirp(tokenDirectory, function(err) {
-		form.parse(req);
+	mkdirp(UPLOAD_DIR, function(err) {
+		mkdirp(tokenDirectory, function(err) {
+			form.parse(req);
+		});
 	});
 	console.log("parse!");
 	
