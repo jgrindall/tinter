@@ -9,7 +9,17 @@ var mkdirp = 			require("mkdirp");
 
 var app = express();
 var port = Number(process.env.PORT || 5000);
-var UPLOAD_DIR = path.join(__dirname, '/public/uploads');
+var UPLOAD_DIR;
+
+if(process.env.PORT){
+	UPLOAD_DIR = path.join(__dirname, '/tmp');
+}
+else{
+	UPLOAD_DIR = path.join(__dirname, '/public/uploads');
+}
+
+
+
 
 app.configure(function(){
 	app.use(express.static(__dirname + "/public"));
