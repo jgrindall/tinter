@@ -120,9 +120,7 @@
 				}
 				var re = new RegExp("^#[0-9a-fA-F]{6}$");
 				for(var i = 0; i < arr.length; i++){
-					console.log(arr[i], re.test(arr[i]));
 					if(!re.test(arr[i])){
-						console.log(arr[i], "fails");
 						alert("# followed by 6 characters please");
 						return null;
 					}
