@@ -64,7 +64,12 @@
 			<br/>
 			<br/>
 			<label>2. Enter your hex colors to tint with (one on each line, with #)</label>
-			<p><a id="preset0" class='preset'>preset0</a><a id="preset1" class='preset preset0'>preset1</a></p>
+			<br/>
+			<label>Pixels of color rgb(127,127,127) (mid-grey) will take on your specified colors</label>
+			<p>
+				<a id="skin" class='preset'>skin</a>
+				<a id="preset1" class='preset'>preset1</a>
+			</p>
 			<br/>
 			<textarea id="hex" rows="10" cols="20" wrap="soft"></textarea>
 			<br/>
@@ -73,7 +78,6 @@
 			<button id="clear" >Clear</button>
 		</form>
 		<br/>
-		<hr/>
 		<br/>
 		<label>3. Check and <a id='download' style='color:blue;' href='/download'>download</a> your images. Tweak your colours and resubmit if you need to.</label>
 		<br/>
@@ -83,7 +87,7 @@
 			var token;
 			var MAX_OFFSET = 20;
 			var presets = {
-				"preset0":"#ff0000\n#00ff00",
+				"skin":"#ffcc99\n#b98865\n#c0a183\n#573719",
 				"preset1":"#ff0000\n#000066\n#444666"
 			};
 			var someImages = function(){
@@ -134,7 +138,6 @@
 			var loadImages = function(response){
 				// original
 				token = response.token;
-				console.log(response);
 				var hex = getHexArray();
 				setTimeout(function(){
 					var i, j, img
@@ -142,9 +145,7 @@
 					for(j = 0; j < response.numFiles; j++){
 						img = $("<img/>").attr("src", "/uploads/upload_" + token + "/orig_" + j + ".png").addClass("orig");
 						$("#images").append(img);
-						console.log("loop", response.numColors);
 						for(i = 0; i < response.numColors; i++){
-							console.log(i, j);
 							img = $("<img/>").attr("src", "/uploads/upload_" + token + "/new_" + j + "_" + i + ".png").addClass("new");
 							$("#images").append(img);
 						}
