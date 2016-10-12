@@ -1,18 +1,15 @@
 <!doctype html>
 <html lang="en">
-	
 	<head>
 
 		<meta charset="utf-8">
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 		<meta name="viewport" content = "width = device-width, initial-scale = 1.0, user-scalable = no, minimum-scale = 1, maximum-scale = 1" />
-		
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
 		<script src="https://cdn.rawgit.com/oliver-moran/jimp/v0.2.27/browser/lib/jimp.min.js"></script>
 		<script src="tinycolor.js"></script>
-		
 		<style>
 			*{
 				font-family:Helvetica, Verdana,Arial,sans-serif;
@@ -27,6 +24,9 @@
 			}
 			ul img{
 				max-width:200px;
+			}
+			ul img.orig{
+				border:2px solid grey;
 			}
 			textarea{
 				font-family:monospace;
@@ -58,7 +58,7 @@
 		<img style='margin:0 !important;' src="logo.png" height="80"/>
 
 		<form id="form">
-			<label>1. Upload your image.</label>
+			<label>1. Upload your image(s) (more images will take longer)</label>
 			<br/>
 			<input type="file" name="uploads[]" multiple="multiple"></input>
 			<br/>
@@ -78,24 +78,17 @@
 		<label>3. Check and <a id='download' style='color:blue;' href='/download'>download</a> your images. Tweak your colours and resubmit if you need to.</label>
 		<br/>
 		<br/>
-		
 		<ul id="images"></ul>
-		
 		<script>
-			
 			var token;
-			
 			var MAX_OFFSET = 20;
-			
 			var presets = {
 				"preset0":"#ff0000\n#00ff00",
 				"preset1":"#ff0000\n#000066\n#444666"
 			};
-			
 			var someImages = function(){
 				return ($("ul#images li").length >= 1);
 			};
-			
 			var getFormData = function(){
 				var formData, hex, files;
 				formData = new FormData();
@@ -115,7 +108,6 @@
 					return null;
 				}
 			};
-			
 			var getHexArray = function(){
 				var hex = $("#hex").val().toLowerCase().replace(/[^01234567889abcdef#\n]/gi, '').split("\n");
 				var arr = _.compact(hex);
@@ -133,7 +125,6 @@
 				}
 				return arr;
 			};
-			
 			var showSpinner = function(){
 				$("body").append("<div class='spinner'></div>");
 			};
@@ -157,6 +148,7 @@
 							img = $("<img/>").attr("src", "/uploads/upload_" + token + "/new_" + j + "_" + i + ".png").addClass("new");
 							$("#images").append(img);
 						}
+						$("#images").append("<br/><br/>");
 					}
 				}, 100);
 				setTimeout(hideSpinner, 200);
@@ -170,11 +162,9 @@
 					contentType: false
 				});
 			};
-			
 			var empty = function(){
 				$("ul#images").empty();
 			};
-			
 			var submitToServer = function(){
 				var formData = getFormData();
 				showSpinner();
@@ -183,11 +173,9 @@
 					.then(loadImages);
 				}
 			};
-			
 			var loadPreset = function(id){
 				$("#hex").val(presets[id]);
 			};
-			
 			$(document).ready(function(){
 				var input = $("input[type=file]");
 				$("a.preset").click(function(e){
@@ -210,10 +198,7 @@
 					return false;
 				});
 			});
-		
 		</script>
-		
 	</body>
-	
 </html>
 

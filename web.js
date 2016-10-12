@@ -36,52 +36,59 @@ var zipImages = function(token, fn){
 
 var processAll = function(files, colorList, token){
 	var def = new Deferred();
-	var promises = files.map(function(file){
+	var loadPromises = files.map(function(file){
 		return jimp.read(file);
 	});
-	Promise.all(promises)
+	Promise.all(loadPromises)
 	.then(function(imgs){
-		for(var index = 0; index < imgs.length; index++){
-			processImg(imgs[index], index, colorList, token);
-		}
-	});
-	setTimeout(function(){
-		zipImages(token, function(){
-			def.resolve();
+		var processPromises = imgs.map(function(img, imgIndex){
+			return processImg(img, imgIndex, colorList, token);
 		});
-	}, 1000);
+		Promise.all(processPromises)
+		.then(function(){
+			zipImages(token, function(){
+				def.resolve();
+			});
+		});
+	});
 	return def.promise;
 };
 
-var processImg = function(img, index, colorList, token){
-	console.log("p1");
-	var data, i, color0, clonedImg;
+var processOneImg = function(img, imgIndex, colorIndex, color, token){
+	var data, color0, clonedImg, def = new Deferred();
 	var tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
-	for(i = 0; i < colorList.length; i++){
-		color0 = tinycolor2(colorList[i]);
-		console.log("clr", colorList[i]);
-		clonedImg = img.clone();
-		data = clonedImg.bitmap.data;
-		clonedImg.scan(0, 0, clonedImg.bitmap.width, clonedImg.bitmap.height, function (x, y, idx) {
-			var newColor;
-			var red   = 		data[ idx + 0 ];
-			var green = 		data[ idx + 1 ];
-			var blue  = 		data[ idx + 2 ];
-			var alpha = 		data[ idx + 3 ];
-			var amount = 		red - 127;
-			if(amount >= 0){
-				newColor = 		color0.clone().lighten(Math.round(MAX_OFFSET * amount/127));
-			}
-			else{
-				newColor = 		color0.clone().darken(Math.round(-MAX_OFFSET * amount/127));
-			}
-			var newRGB = newColor.toRgb();
-			data[idx + 0] = 	newRGB.r;
-			data[idx + 1] = 	newRGB.g;
-			data[idx + 2] = 	newRGB.b;
-		});
-		clonedImg.write(path.join(tokenDirectory, "new_" + index + "_" + i + ".png"));
-	}
+	color0 = tinycolor2(color);
+	clonedImg = img.clone();
+	data = clonedImg.bitmap.data;
+	clonedImg.scan(0, 0, clonedImg.bitmap.width, clonedImg.bitmap.height, function (x, y, idx) {
+		var newColor;
+		var red   = 		data[ idx + 0 ];
+		var green = 		data[ idx + 1 ];
+		var blue  = 		data[ idx + 2 ];
+		var alpha = 		data[ idx + 3 ];
+		var amount = 		red - 127;
+		if(amount >= 0){
+			newColor = 		color0.clone().lighten(Math.round(MAX_OFFSET * amount/127));
+		}
+		else{
+			newColor = 		color0.clone().darken(Math.round(-MAX_OFFSET * amount/127));
+		}
+		var newRGB = newColor.toRgb();
+		data[idx + 0] = 	newRGB.r;
+		data[idx + 1] = 	newRGB.g;
+		data[idx + 2] = 	newRGB.b;
+	});
+	clonedImg.write(path.join(tokenDirectory, "new_" + imgIndex + "_" + colorIndex + ".png"), function(){
+		def.resolve();
+	});
+	return def.promise;
+};
+
+var processImg = function(img, imgIndex, colorList, token){
+	var promises = colorList.map(function(color, colorIndex){
+		return processOneImg(img, imgIndex, colorIndex, color, token);
+	});
+	return Promise.all(promises);
 };
 
 app.get('/download', function(req, res) {
@@ -106,7 +113,6 @@ app.post('/upload', function(req, res) {
 	var files = [];
 	form.on('file', function(field, file) {
 		var fullFilename = path.join(tokenDirectory, "orig_" + files.length + ".png");
-		console.log("file", file, fullFilename);
 		files.push(fullFilename);
 		fs.renameSync(file.path, fullFilename);
 	});
@@ -119,7 +125,6 @@ app.post('/upload', function(req, res) {
 		console.log('An error has occured: \n' + err);
 	});
 	form.on('end', function() {
-		console.log("end!");
 		processAll(files, colorList, token)
 		.then(function(){
 			res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -129,7 +134,6 @@ app.post('/upload', function(req, res) {
 	});
 	mkdirp(UPLOAD_DIR, function(err) {
 		mkdirp(tokenDirectory, function(err) {
-			console.log("parse!");
 			form.parse(req);
 		});
 	});
