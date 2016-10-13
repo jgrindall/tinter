@@ -68,7 +68,7 @@
 			<label>Pixels of color rgb(127,127,127) (mid-grey) will take on your specified colors</label>
 			<p>
 				<a id="skin" class='preset'>skin</a>
-				<a id="preset1" class='preset'>preset1</a>
+				<a id="hair" class='preset'>hair</a>
 			</p>
 			<br/>
 			<textarea id="hex" rows="10" cols="20" wrap="soft"></textarea>
@@ -90,8 +90,8 @@
 			var pollInterval;
 			var MAX_OFFSET = 20;
 			var presets = {
-				"skin":"#ffcc99\n#b98865\n#c0a183\n#573719",
-				"preset1":"#ff0000\n#000066\n#444666"
+				"skin":"#f4d9bf\n#efcaa6\n#d4a87f\n#8c715d\n#805126\n#533724",
+				"hair":"#ffd712\n#ff8931\n#795128\n#1e1e1e\n#bfbfbf\n#975aa6"
 			};
 			var someImages = function(){
 				return ($("ul#images li").length >= 1);
@@ -164,7 +164,8 @@
 					type: 'post',
 					data: formData,
 					processData: false,
-					contentType: false
+					contentType: false,
+					timeout: 10 * 60 * 1000
 				});
 			};
 			var empty = function(){
