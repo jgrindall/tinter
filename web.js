@@ -81,6 +81,7 @@ var processOneImg = function(img, imgIndex, colorIndex, color, token){
 	clonedImg.write(path.join(tokenDirectory, "new_" + imgIndex + "_" + colorIndex + ".png"), function(){
 		def.resolve();
 	});
+	console.log("processed", imgIndex, colorIndex);
 	return def.promise;
 };
 
