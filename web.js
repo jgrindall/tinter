@@ -12,6 +12,8 @@ var app = 				express();
 var port = 				Number(process.env.PORT || 5000);
 var UPLOAD_DIR = 		path.join(__dirname, '/public/uploads');
 
+var progress = {};
+
 app.configure(function(){
 	app.use(express.static(__dirname + "/public"));
 });
@@ -67,21 +69,24 @@ var processOneImg = function(img, imgIndex, colorIndex, color, token){
 		var blue  = 		data[ idx + 2 ];
 		var alpha = 		data[ idx + 3 ];
 		var amount = 		red - 127;
-		if(amount >= 0){
-			newColor = 		color0.clone().lighten(Math.round(MAX_OFFSET * amount/127));
+		if(alpha > 0){
+			if(amount >= 0){
+				newColor = 		color0.clone().lighten(Math.round(MAX_OFFSET * amount/127));
+			}
+			else{
+				newColor = 		color0.clone().darken(Math.round(-MAX_OFFSET * amount/127));
+			}
+			var newRGB = newColor.toRgb();
+			data[idx + 0] = 	newRGB.r;
+			data[idx + 1] = 	newRGB.g;
+			data[idx + 2] = 	newRGB.b;
 		}
-		else{
-			newColor = 		color0.clone().darken(Math.round(-MAX_OFFSET * amount/127));
-		}
-		var newRGB = newColor.toRgb();
-		data[idx + 0] = 	newRGB.r;
-		data[idx + 1] = 	newRGB.g;
-		data[idx + 2] = 	newRGB.b;
 	});
 	clonedImg.write(path.join(tokenDirectory, "new_" + imgIndex + "_" + colorIndex + ".png"), function(){
 		def.resolve();
 	});
 	console.log("processed", imgIndex, colorIndex);
+	progress[token].done = progress[token].done ? progress[token].done + 1 : 1;
 	return def.promise;
 };
 
@@ -103,47 +108,66 @@ app.get('/download', function(req, res) {
 			console.log('done');
 	 	}
 	});
+	setTimeout(function(){
+		// TODO remove the zip and the progress
+	});
 });
 
 app.post('/upload', function(req, res) {
-    var form = new formidable.IncomingForm();
+    var form, token, tokenDirectory, colorList = [], fileNames = [], files = [];
+	form = new formidable.IncomingForm();
 	form.multiples = true;
-	var token = Math.floor(Math.random() * 100000000000);
-	var tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
-	var colorList = [];
-	var files = [];
 	form.on('file', function(field, file) {
-		var fullFilename = path.join(tokenDirectory, "orig_" + files.length + ".png");
-		files.push(fullFilename);
-		fs.renameSync(file.path, fullFilename);
+		files.push(file);
 	});
 	form.on('field', function(name, val){
 		if(name === "colors"){
 			colorList = val.split(",");
+		}
+		else if(name === "token"){
+			token = val;
+			tokenDirectory = path.join(UPLOAD_DIR, "/upload_" + token);
 		}
 	});
 	form.on('error', function(err) {
 		console.log('An error has occured: \n' + err);
 	});
 	form.on('end', function() {
-		processAll(files, colorList, token)
-		.then(function(){
-			var output = JSON.stringify({"token": token, "numFiles":files.length, "numColors":colorList.length});
-			console.log("processed", output);
-			res.writeHead(200, { 'Content-Type': 'application/json' });
-			res.write(output);
-			res.end();
+		mkdirp(tokenDirectory, function(err) {
+			var i, fullFilename;
+			// move the files
+			for(i = 0; i < files.length; i++){
+				fullFilename = path.join(tokenDirectory, "orig_" + i + ".png");
+				fileNames.push(fullFilename);
+				fs.renameSync(files[i].path, fullFilename);
+			}
+			progress[token] = {"token":token, "numFiles":files.length, "numColors":colorList.length, "done":0};
+			processAll(fileNames, colorList, token)
+			.then(function(){
+				var output = JSON.stringify(progress[token]);
+				console.log("processed", output);
+				res.writeHead(200, { 'Content-Type': 'application/json' });
+				res.write(output);
+				res.end();
+			});
 		});
 	});
 	mkdirp(UPLOAD_DIR, function(err) {
-		mkdirp(tokenDirectory, function(err) {
-			form.parse(req);
-		});
+		form.parse(req);
 	});
 });
 
 app.get('/', function(req, res) {
 	app.render(res, "public/src/index.html");
+});
+
+app.get('/progress/:token([0-9]+)', function(req, res) {
+	var token = req.params.token;
+	var output = JSON.stringify({"progress": progress[token] || {}});
+	console.log("report progress for ", token, progress[token]);
+	res.writeHead(200, { 'Content-Type': 'application/json' });
+	res.write(output);
+	res.end();
 });
 
 app.listen(port, function() {

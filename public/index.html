@@ -78,6 +78,8 @@
 			<button id="clear" >Clear</button>
 		</form>
 		<br/>
+		<label id='progress'>Progress : 0/0</label>
+		<br/>
 		<br/>
 		<label>3. Check and <a id='download' style='color:blue;' href='/download'>download</a> your images. Tweak your colours and resubmit if you need to.</label>
 		<br/>
@@ -85,6 +87,7 @@
 		<ul id="images"></ul>
 		<script>
 			var token;
+			var pollInterval;
 			var MAX_OFFSET = 20;
 			var presets = {
 				"skin":"#ffcc99\n#b98865\n#c0a183\n#573719",
@@ -104,6 +107,7 @@
 						formData.append('uploads[]', files[i], files[i].name);
 					}
 					formData.append("colors", hex.join(","));
+					formData.append("token", token);
 					return formData;
 				}
 				else{
@@ -135,7 +139,6 @@
 			};
 			var loadImages = function(response){
 				// original
-				token = response.token;
 				var hex = getHexArray();
 				setTimeout(function(){
 					var i, j, img
@@ -150,7 +153,10 @@
 						$("#images").append("<br/><br/>");
 					}
 				}, 100);
-				setTimeout(hideSpinner, 200);
+				setTimeout(function(){
+					hideSpinner();
+					stopPoll();
+				}, 200);
 			};
 			var sendForm = function(formData){
 				return $.ajax({
@@ -164,13 +170,37 @@
 			var empty = function(){
 				$("ul#images").empty();
 			};
+			var stopPoll = function(){
+				if(pollInterval){
+					clearInterval(pollInterval);
+					pollInterval = null;
+				}
+			};
+			var startPoll = function(){
+				if(!pollInterval){
+					pollInterval = setInterval(getProgress, 2000);
+				}
+			};
 			var submitToServer = function(){
 				var formData = getFormData();
 				showSpinner();
+				startPoll();
 				if (formData){
 					sendForm(formData)
 					.then(loadImages);
 				}
+			};
+			var getProgress = function(){
+				$.ajax({
+					url: "/progress/" + token,
+					type: 'get',
+				})
+				.done(function(data){
+					console.log(data);
+					if(data && data.progress){
+						$("#progress").text("Progress : " + data.progress.done + "/" + (data.progress.numColors * data.progress.numFiles));
+					}
+				});
 			};
 			var loadPreset = function(id){
 				$("#hex").val(presets[id]);
@@ -193,6 +223,7 @@
 					e.stopPropagation();
 					e.preventDefault();
 					empty();
+					token = Math.floor(Math.random() * 100000000000);
 					submitToServer();
 					return false;
 				});
